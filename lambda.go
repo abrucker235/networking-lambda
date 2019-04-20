@@ -14,7 +14,7 @@ import (
 type Request struct {
 	DomainName string `json:"domainName"`
 	Protocal   string `json:"protocol"`
-	Port       string `json:"port"`
+	Port       int    `json:"port"`
 }
 
 type Response struct {
