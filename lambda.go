@@ -1,13 +1,11 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
-	"log"
 	"net"
 	"time"
 
-	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 )
 
@@ -22,32 +20,23 @@ type Response struct {
 	Reachable  bool     `json:"reachable"`
 }
 
-func Handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	var input Request
-	if err := json.Unmarshal([]byte(request.Body), &input); err == nil {
-		response := &Response{}
-		if ips, err := net.LookupIP(input.DomainName); err == nil {
-			var dnsEntries []string
-			for _, ip := range ips {
-				dnsEntries = append(dnsEntries, fmt.Sprintf("%s IN A %s", input.DomainName, ip))
-			}
-			response.DNSEntries = dnsEntries
+func Handler(ctx context.Context, request Request) (Response, error) {
+	response := Response{}
+	if ips, err := net.LookupIP(request.DomainName); err == nil {
+		var dnsEntries []string
+		for _, ip := range ips {
+			dnsEntries = append(dnsEntries, fmt.Sprintf("%s IN A %s", request.DomainName, ip))
 		}
-
-		if _, err := net.DialTimeout(input.Protocal, fmt.Sprintf("%s:%d", input.DomainName, input.Port), time.Duration(500*time.Millisecond)); err == nil {
-			response.Reachable = true
-		} else {
-			response.Reachable = false
-		}
-
-		if jsonBody, err := json.Marshal(response); err == nil {
-			return events.APIGatewayProxyResponse{Body: string(jsonBody), StatusCode: 200}, err
-		}
-	} else {
-		log.Printf("%v", err)
+		response.DNSEntries = dnsEntries
 	}
 
-	return events.APIGatewayProxyResponse{StatusCode: 500}, nil
+	if _, err := net.DialTimeout(request.Protocal, fmt.Sprintf("%s:%d", request.DomainName, request.Port), time.Duration(500*time.Millisecond)); err == nil {
+		response.Reachable = true
+	} else {
+		response.Reachable = false
+	}
+
+	return response, nil
 }
 
 func main() {
